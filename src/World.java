@@ -13,8 +13,10 @@ public class World {
 	private int nBranches = 0;
 	private int noPrize = 9;
 	private String chosenMove;
-	private int minimaxDepth = 80;
+	private int minimaxDepth = 9;
 	private int myScore = 0, enemyScore = 0;
+	private int currMyScore=0, currEnemyScore=0;
+	private static final double prizeChance = 0.9;
 
 	public World() {
 		board = new String[rows][columns];
@@ -77,7 +79,6 @@ public class World {
 	public String selectAction() {
 		availableMoves = new ArrayList<String>();
 		String[][] temp_board = new String[rows][columns]; // copy of board
-		int x1, x2, y1, y2;
 		int eval;
 
 		if (myColor == 0) // I am the white player
@@ -89,6 +90,7 @@ public class World {
 		nTurns++;
 		nBranches += availableMoves.size();
 		ArrayList<String> moves = customClone(availableMoves);
+//		System.out.println(moves);
 		int maxEval = Integer.MIN_VALUE;
 		for (int i = 0; i < rows; i++) {
 			for (int j = 0; j < columns; j++) {
@@ -98,30 +100,19 @@ public class World {
 		int curEnemyScore 	= this.enemyScore;
 		int curMyScore 		= this.myScore;
 		for (String move : moves) {
-
-			x1 = Integer.parseInt(Character.toString(move.charAt(0)));
-			y1 = Integer.parseInt(Character.toString(move.charAt(1)));
-			x2 = Integer.parseInt(Character.toString(move.charAt(2)));
-			y2 = Integer.parseInt(Character.toString(move.charAt(3)));
-
-			board[x2][y2] = board[x1][y1];
-			board[x1][y1] = " ";
 			availableMoves.clear();
-//			for (int i = 0; i < rows; i++) {
-//				for (int j = 0; j < columns; j++) {
-//					System.out.println(board[i][j]);
-//				}
-//			}
+			// Make move
+			move(move);
+
 			eval = minimax(move, minimaxDepth, Integer.MIN_VALUE, Integer.MAX_VALUE, false);
-			// Restore board
-			for (int i = 0; i < rows; i++) {
-				for (int j = 0; j < columns; j++) {
-					board[i][j] = temp_board[i][j];
-				}
-			}
+			
 			// Restore score
-//			this.myScore 	= curMyScore;
-//			this.enemyScore	= curEnemyScore;
+			this.myScore 	= curMyScore;
+			this.enemyScore	= curEnemyScore;
+						
+			// Restore board
+			undoMove(temp_board);
+			
 			if (eval > maxEval) {
 				maxEval = eval;
 				chosenMove = move;
@@ -131,17 +122,20 @@ public class World {
 	}
 
 	private int calcMovesScore(String move) {
-		int x = Integer.parseInt(Character.toString(move.charAt(2)));
-		int y = Integer.parseInt(Character.toString(move.charAt(3)));
-		System.out.println("Move: "+move+"\tx:"+x+" y:"+y+"\t cell: "+board[x][y]);
+		int x1,y1,x2,y2;
 		int returningScore = 0;
-		if (Character.toString(board[x][y].charAt(0)).equals("P")) {// present
-//			if (Math.random() > 0.9)
-			returningScore++;
-		} else if ((Character.toString(board[x][y].charAt(0)).equals("B"))
-				|| Character.toString(board[x][y].charAt(0)).equals("W")) {
-			String chesspart = Character.toString(board[x][y].charAt(1)); // what kind of enemy we are about to
-																			// capture
+		x1 = Integer.parseInt(Character.toString(move.charAt(0)));
+		y1 = Integer.parseInt(Character.toString(move.charAt(1)));
+		x2 = Integer.parseInt(Character.toString(move.charAt(2)));
+		y2 = Integer.parseInt(Character.toString(move.charAt(3)));
+//		System.out.println("Move: "+move+"\tx:"+x+" y:"+y+"\t cell: "+board[x][y]);
+
+		if (Character.toString(board[x2][y2].charAt(0)).equals("P")) {// present
+			if (Math.random() > prizeChance)
+				returningScore++;
+		} else if ((Character.toString(board[x2][y2].charAt(0)).equals("B"))
+				|| Character.toString(board[x2][y2].charAt(0)).equals("W")) {
+			String chesspart = Character.toString(board[x2][y2].charAt(1)); // what kind of enemy we are about to capture
 			if (chesspart.equals("P")) {
 				returningScore++;
 			} else if (chesspart.equals("R")) {
@@ -150,32 +144,44 @@ public class World {
 				returningScore += 8;
 			}
 		}
-		System.out.println("Calc mooooooo \t"+returningScore);
+		if( (x1==rows-2 && x2==rows-1) || (x1==1 && x2==0) ) { //last row
+			returningScore++;
+	   }
+//		System.out.println("Calc mooooooo \t"+returningScore);
 		return returningScore;
 	}
 
 	private Boolean game_over() {
 		Boolean white = false;
 		Boolean black = false;
-//		for (String part : parts) {
-//			if (part.equals("WK")) {
-//				white = true;
-//				// return true;
-//			} else if (part.equals("BK")) {
-//				black = true;
-//				// return true;
-//			}
-//		}
-		for(int r = 0; r < this.rows; r++)
+		int pawns=0;
+
+		for(int r = 0; r < this.rows; r++) {
 			for(int c = 0; c < this.columns; c++) {
-				if(board[r][c].contains("WK"))
-					white = true;
-				if(board[r][c].contains("BK"))
-					black = true;
+//				String chesspart = Character.toString(board[r][c].charAt(1)); 
+				if(Character.toString(board[r][c].charAt(0)).equals("W")) {
+					if(Character.toString(board[r][c].charAt(1)).equals("K"))
+						white = true;
+					else if(Character.toString(board[r][c].charAt(1)).equals("P") 
+							|| Character.toString(board[r][c].charAt(1)).equals("R"))
+						pawns++;
+				}
+				else if(Character.toString(board[r][c].charAt(0)).equals("B")) {
+					if(Character.toString(board[r][c].charAt(1)).equals("K"))
+						black = true;
+					else if(Character.toString(board[r][c].charAt(1)).equals("P") 
+							|| Character.toString(board[r][c].charAt(1)).equals("R"))
+						pawns++;
+				}
 			}
-//		if (white && black)
-//			return false;
-		return black && white;
+		}
+		if (white && black)// Both kings dead
+			return false;
+		else if(white||black)// One of the kings is captured
+			return true;
+		else if(!white && !black && pawns==0) // Only the 2 kings left
+			return true;
+		return false;
 	}
 
 	
@@ -192,9 +198,10 @@ public class World {
 	 */
 	private int minimax(String move, int depth, int alpha, int beta, Boolean maximizingPlayer) {
 		String[][] temp_board = new String[rows][columns];
-		int x1, x2, y1, y2;
+		ArrayList<String> children=new ArrayList<String>();
 		if (depth == 0 || game_over()) {
-			System.out.println("Recursion fin: \tmine: "+myScore+"\tenemy: "+enemyScore);
+//			System.out.println("111111111111111");
+//			System.out.println("Recursion fin: \tmine: "+myScore+"\tenemy: "+enemyScore);
 			return static_eval();// (myScore, enemyScore);
 		}
 
@@ -206,78 +213,62 @@ public class World {
 
 		if (maximizingPlayer) {
 			int maxEval = Integer.MIN_VALUE;
-			ArrayList<String> children;
+//			ArrayList<String> children;
 			if (myColor == 0) // I am the white player
 				this.whiteMoves();
 			else // I am the black player
 				this.blackMoves();
 			children = customClone(availableMoves);
-			System.out.println("MINIMAX::maxPlayer"+availableMoves);
+			currMyScore=this.myScore;
+			this.myScore+=calcMovesScore(move);
+//			System.out.println("MINIMAX::maxPlayer"+availableMoves);
 			for (String child : children) {
 				availableMoves.clear();
 				
-				x1 = Integer.parseInt(Character.toString(child.charAt(0)));
-				y1 = Integer.parseInt(Character.toString(child.charAt(1)));
-				x2 = Integer.parseInt(Character.toString(child.charAt(2)));
-				y2 = Integer.parseInt(Character.toString(child.charAt(3)));
-
-				this.myScore += this.calcMovesScore(child);
-
-				board[x2][y2] = board[x1][y1];
-				board[x1][y1] = " ";
+				// Make Move
+				move(child);
 
 				maxEval = Math.max(maxEval, minimax(child, depth - 1, alpha, beta, false));
-				for (int i = 0; i < rows; i++) {
-					for (int j = 0; j < columns; j++) {
-						board[i][j] = temp_board[i][j];
-					}
-				}
+				this.myScore=currMyScore;
+				undoMove(temp_board);
 				alpha = Math.max(alpha, maxEval);
-				if (alpha >= beta)
+				if (beta <= alpha)
 					break;
 			}
-			return maxEval;
+			return alpha;
 		} else {
 			int minEval = Integer.MAX_VALUE;
-			ArrayList<String> children;
+//			ArrayList<String> children;
 			if (myColor != 0) // I am the white player
 				this.whiteMoves();
 			else // I am the black player
 				this.blackMoves();
 			children = customClone(availableMoves);
-			System.out.println("MINIMAX::minPlayer"+availableMoves);
+			currEnemyScore=this.enemyScore;
+			this.enemyScore+=calcMovesScore(move);
+//			System.out.println("MINIMAX::minPlayer"+availableMoves);
 			for (String child : children) {
 				availableMoves.clear();
 
-				x1 = Integer.parseInt(Character.toString(child.charAt(0)));
-				y1 = Integer.parseInt(Character.toString(child.charAt(1)));
-				x2 = Integer.parseInt(Character.toString(child.charAt(2)));
-				y2 = Integer.parseInt(Character.toString(child.charAt(3)));
-
-				this.enemyScore += this.calcMovesScore(child);
-				
-				board[x2][y2] = board[x1][y1];
-				board[x1][y1] = " ";
+				// Make Move
+				move(child);
 
 				minEval = Math.min(minEval, minimax(child, depth - 1, alpha, beta, true));
-				for (int i = 0; i < rows; i++) {
-					for (int j = 0; j < columns; j++) {
-						board[i][j] = temp_board[i][j];
-					}
-				}
+				this.enemyScore=currEnemyScore;
+				undoMove(temp_board);
 				beta = Math.min(beta, minEval);
 				if (beta <= alpha)
 					break;
 			}
-			return minEval;
+			return beta;
 		}
 	}
 
 	private int static_eval() {
 		int whitePawnValue=0;
 		int blackPawnValue=0;
-		for(int i = 0; i < rows; i++) {
-	         for(int j = 0; j < columns; j++){
+		for(int i = 0; i < this.rows; i++) {
+	         for(int j = 0; j < this.columns; j++){
 	        	 if( Character.toString(board[i][j].charAt(0)) == "W") {
 	        		 if(Character.toString(board[i][j].charAt(1)).equals("P")) {
 	        			 whitePawnValue++;
@@ -297,10 +288,11 @@ public class World {
 	        	 }
 	        }
 		}
+		int value=(this.myScore+whitePawnValue)-(this.enemyScore+blackPawnValue);
 		if(myColor == 0)		// I am the white player
-			return (myScore+whitePawnValue)-(enemyScore+blackPawnValue);
+			return value;
 		else					// I am the black player
-			return (myScore+blackPawnValue)-(enemyScore+whitePawnValue);
+			return (this.myScore+blackPawnValue)-(this.enemyScore+whitePawnValue);
 	}
 
 	private int static_eval(String move) {
@@ -338,6 +330,41 @@ public class World {
 		return nBranches / (double) nTurns;
 	}
 
+	public void move(String move) {
+		int x1,y1,x2,y2;
+		
+		x1 = Integer.parseInt(Character.toString(move.charAt(0)));
+		y1 = Integer.parseInt(Character.toString(move.charAt(1)));
+		x2 = Integer.parseInt(Character.toString(move.charAt(2)));
+		y2 = Integer.parseInt(Character.toString(move.charAt(3)));
+		
+		String chesspart = Character.toString(board[x1][y1].charAt(1));
+
+		boolean pawnLastRow = false;
+
+		// check if it is a move that has made a move to the last line
+		if (chesspart.equals("P"))
+			if ((x1 == rows - 2 && x2 == rows - 1) || (x1 == 1 && x2 == 0)) {
+				board[x2][y2] = " "; // in a case an opponent's chess part has just been captured
+				board[x1][y1] = " ";
+				pawnLastRow = true;
+			}
+
+		// otherwise
+		if (!pawnLastRow) {
+			board[x2][y2] = board[x1][y1];
+			board[x1][y1] = " ";
+		}
+
+	}
+	
+	public void undoMove(String[][] tempBoard) {
+		for (int i = 0; i < rows; i++) {
+			for (int j = 0; j < columns; j++) {
+				board[i][j] = tempBoard[i][j];
+			}
+		}
+	}
 	public void makeMove(int x1, int y1, int x2, int y2, int prizeX, int prizeY) {
 		String chesspart = Character.toString(board[x1][y1].charAt(1));
 
