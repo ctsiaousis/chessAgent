@@ -22,8 +22,8 @@ public class Client
 	private String receivedMsg = "";
 	private int myColor = 0;
 	private World world = null;
-	private int scoreWhite = 0;
-	private int scoreBlack = 0;
+	private static int scoreWhite = 0;
+	private static int scoreBlack = 0;
 	private int delay = 10;		// never set it to 0
 	
 	public Client()
@@ -31,8 +31,8 @@ public class Client
 		// initialization of the fields
 		try
 		{
+
 			clientSocket = new DatagramSocket();
-			
 			sendData = new byte[size];
 			receiveData = new byte[size];
 			
@@ -233,12 +233,12 @@ public class Client
 		}
 	}
 	
-	public int getScoreWhite()
+	public static int getScoreWhite()
 	{
 		return scoreWhite;
 	}
 	
-	public int getScoreBlack()
+	public static int getScoreBlack()
 	{
 		return scoreBlack;
 	}

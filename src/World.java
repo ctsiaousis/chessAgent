@@ -1,7 +1,9 @@
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Random;
 
-public class World {
+public class World{
 	private String[][] board = null;
 	private int rows = 7;
 	private int columns = 5;
@@ -13,14 +15,19 @@ public class World {
 	private int nBranches = 0;
 	private int noPrize = 9;
 	private String chosenMove;
-	private int minimaxDepth = 9;
+	private int minimaxDepth = 8;
 	private int myScore = 0, enemyScore = 0;
 	private int currMyScore=0, currEnemyScore=0;
+	private int curMyScore=0, curEnemyScore=0;
 	private static final double prizeChance = 0.9;
+	
+	
+	
 
 	public World() {
+		
+		
 		board = new String[rows][columns];
-
 		/*
 		 * represent the board
 		 * 
@@ -70,6 +77,9 @@ public class World {
 			board[rows / 2][j] = "P";
 
 		availableMoves = new ArrayList<String>();
+		
+		
+
 	}
 
 	public void setMyColor(int myColor) {
@@ -80,12 +90,28 @@ public class World {
 		availableMoves = new ArrayList<String>();
 		String[][] temp_board = new String[rows][columns]; // copy of board
 		int eval;
-
-		if (myColor == 0) // I am the white player
+     	
+//		cl=new Client();
+//		this.myScore=0;
+//		this.enemyScore=0;
+		
+		
+		 
+		if (myColor == 0) { // I am the white player
 			this.whiteMoves();
-		else // I am the black player
+			myScore=Client.getScoreWhite();
+			enemyScore=Client.getScoreBlack();
+			curMyScore=myScore;
+			curEnemyScore=enemyScore;
+		}
+		else { // I am the black player
 			this.blackMoves();
-
+			enemyScore=Client.getScoreWhite();
+			myScore=Client.getScoreBlack();
+			curMyScore=myScore;
+			curEnemyScore=enemyScore;
+		}
+		
 		// keeping track of the branch factor
 		nTurns++;
 		nBranches += availableMoves.size();
@@ -97,22 +123,91 @@ public class World {
 				temp_board[i][j] = board[i][j];
 			}
 		}
-		int curEnemyScore 	= this.enemyScore;
-		int curMyScore 		= this.myScore;
+//		System.out.println("--------------1-------------");
+//		for (int i = 0; i < rows; i++) {
+//			for (int j = 0; j < columns; j++) {
+//				if(Character.toString(board[i][j].charAt(0)).equals("P"))
+//					System.out.print("|P|");
+//				else if(!((Character.toString(board[i][j].charAt(0)).equals("B")) || Character.toString(board[i][j].charAt(0)).equals("W")))
+//					System.out.print("|-|");
+//				else
+//					System.out.print("|"+board[i][j]+"|");
+//			}
+//			System.out.println("");
+//		}
+//		System.out.println("--------------1--------------");
 		for (String move : moves) {
+			for(int k = 0; k < rows; k++) {
+				for(int j = 0; j < columns; j++) {
+		           board[k][j] = temp_board[k][j];
+		        }
+		    }
 			availableMoves.clear();
+//			System.out.println("============befArx==============");
+//			System.out.println(move);
+//			for (int i = 0; i < rows; i++) {
+//				for (int j = 0; j < columns; j++) {
+//					if(Character.toString(board[i][j].charAt(0)).equals("P"))
+//						System.out.print("|P|");
+//					else if(!((Character.toString(board[i][j].charAt(0)).equals("B")) || Character.toString(board[i][j].charAt(0)).equals("W")))
+//						System.out.print("|-|");
+//					else
+//						System.out.print("|"+board[i][j]+"|");
+//				}
+//				System.out.println("");
+//			}
+//			System.out.println("=============befArx=============");
+//			System.out.println("Before Move Mine: "+myScore+"\tEnemy: "+enemyScore);
+			
+			if (myColor == 0) { // I am the white player
+				myScore+=calcWhiteScore(move);
+				enemyScore+=calcBlackScore(move);
+			}	
+			else { // I am the black player
+				myScore+=calcBlackScore(move);
+				enemyScore+=calcWhiteScore(move);
+			}
 			// Make move
 			move(move);
-
-			eval = minimax(move, minimaxDepth, Integer.MIN_VALUE, Integer.MAX_VALUE, false);
+			
+//			System.out.println("============afArx==============");
+//			System.out.println(move);
+//			for (int i = 0; i < rows; i++) {
+//				for (int j = 0; j < columns; j++) {
+//					if(Character.toString(board[i][j].charAt(0)).equals("P"))
+//						System.out.print("|P|");
+//					else if(!((Character.toString(board[i][j].charAt(0)).equals("B")) || Character.toString(board[i][j].charAt(0)).equals("W")))
+//						System.out.print("|-|");
+//					else
+//						System.out.print("|"+board[i][j]+"|");
+//				}
+//				System.out.println("");
+//			}
+//			System.out.println("=============afArx=============");
+//			System.out.println("After Move Mine: "+myScore+"\tEnemy: "+enemyScore);
+			eval = minimax(move, minimaxDepth, Integer.MIN_VALUE, Integer.MAX_VALUE, false,myScore,enemyScore);
 			
 			// Restore score
-			this.myScore 	= curMyScore;
-			this.enemyScore	= curEnemyScore;
-						
+			myScore 	= curMyScore;
+			enemyScore	= curEnemyScore;
+			
 			// Restore board
 			undoMove(temp_board);
-			
+//			System.out.println("============afArxRe==============");
+//			System.out.println(move);
+//			for (int i = 0; i < rows; i++) {
+//				for (int j = 0; j < columns; j++) {
+//					if(Character.toString(board[i][j].charAt(0)).equals("P"))
+//						System.out.print("|P|");
+//					else if(!((Character.toString(board[i][j].charAt(0)).equals("B")) || Character.toString(board[i][j].charAt(0)).equals("W")))
+//						System.out.print("|-|");
+//					else
+//						System.out.print("|"+board[i][j]+"|");
+//				}
+//				System.out.println("");
+//			}
+//			System.out.println("=============afArxRe=============");
+//			System.out.println("After Undo Mine: "+myScore+"\tEnemy: "+enemyScore);
 			if (eval > maxEval) {
 				maxEval = eval;
 				chosenMove = move;
@@ -121,34 +216,70 @@ public class World {
 		return chosenMove;
 	}
 
-	private int calcMovesScore(String move) {
+	private int calcWhiteScore(String move) {
 		int x1,y1,x2,y2;
-		int returningScore = 0;
+		int returningWhiteScore = 0;
 		x1 = Integer.parseInt(Character.toString(move.charAt(0)));
 		y1 = Integer.parseInt(Character.toString(move.charAt(1)));
 		x2 = Integer.parseInt(Character.toString(move.charAt(2)));
 		y2 = Integer.parseInt(Character.toString(move.charAt(3)));
 //		System.out.println("Move: "+move+"\tx:"+x+" y:"+y+"\t cell: "+board[x][y]);
-
-		if (Character.toString(board[x2][y2].charAt(0)).equals("P")) {// present
-			if (Math.random() > prizeChance)
-				returningScore++;
-		} else if ((Character.toString(board[x2][y2].charAt(0)).equals("B"))
-				|| Character.toString(board[x2][y2].charAt(0)).equals("W")) {
-			String chesspart = Character.toString(board[x2][y2].charAt(1)); // what kind of enemy we are about to capture
-			if (chesspart.equals("P")) {
-				returningScore++;
-			} else if (chesspart.equals("R")) {
-				returningScore += 3;
-			} else if (chesspart.equals("K")) {
-				returningScore += 8;
+		if (Character.toString(board[x1][y1].charAt(0)).equals("W")){
+			if(Character.toString(board[x2][y2].charAt(0)).equals("B")){
+			//String chesspart = Character.toString(board[x2][y2].charAt(1)); // what kind of enemy we are about to capture
+				if (Character.toString(board[x2][y2].charAt(1)).equals("P")) {
+					returningWhiteScore++;
+				} else if(Character.toString(board[x2][y2].charAt(1)).equals("R")) {
+					returningWhiteScore += 3;
+				} else if(Character.toString(board[x2][y2].charAt(1)).equals("K")) {
+					returningWhiteScore += 8;
+				}
+			}
+			else if(Character.toString(board[x2][y2].charAt(0)).equals("P")) {// prize
+				if(Math.random() > prizeChance)
+					returningWhiteScore++;
+			}
+			if(Character.toString(board[x1][y1].charAt(1)).equals("P")) {
+				if((x1==rows-2 && x2==rows-1) || (x1==1 && x2==0)) { //last row
+					returningWhiteScore++;
+				}
 			}
 		}
-		if( (x1==rows-2 && x2==rows-1) || (x1==1 && x2==0) ) { //last row
-			returningScore++;
-	   }
 //		System.out.println("Calc mooooooo \t"+returningScore);
-		return returningScore;
+		return returningWhiteScore;
+	}
+	
+	private int calcBlackScore(String move) {
+		int x1,y1,x2,y2;
+		int returningBlackScore = 0;
+		x1 = Integer.parseInt(Character.toString(move.charAt(0)));
+		y1 = Integer.parseInt(Character.toString(move.charAt(1)));
+		x2 = Integer.parseInt(Character.toString(move.charAt(2)));
+		y2 = Integer.parseInt(Character.toString(move.charAt(3)));
+//		System.out.println("Move: "+move+"\tx:"+x+" y:"+y+"\t cell: "+board[x][y]);
+		if (Character.toString(board[x1][y1].charAt(0)).equals("B")){
+			if(Character.toString(board[x2][y2].charAt(0)).equals("W")){
+			//String chesspart = Character.toString(board[x2][y2].charAt(1)); // what kind of enemy we are about to capture
+				if (Character.toString(board[x2][y2].charAt(1)).equals("P")) {
+					returningBlackScore++;
+				} else if(Character.toString(board[x2][y2].charAt(1)).equals("R")) {
+					returningBlackScore += 3;
+				} else if(Character.toString(board[x2][y2].charAt(1)).equals("K")) {
+					returningBlackScore += 8;
+				}
+			}
+			else if(Character.toString(board[x2][y2].charAt(0)).equals("P")) {// prize
+				if(Math.random() > prizeChance)
+					returningBlackScore++;
+			}
+			if(Character.toString(board[x1][y1].charAt(1)).equals("P")) {
+				if((x1==rows-2 && x2==rows-1) || (x1==1 && x2==0)) { //last row
+					returningBlackScore++;
+				}
+			}
+		}
+//		System.out.println("Calc mooooooo \t"+returningScore);
+		return returningBlackScore;
 	}
 
 	private Boolean game_over() {
@@ -160,15 +291,17 @@ public class World {
 			for(int c = 0; c < this.columns; c++) {
 //				String chesspart = Character.toString(board[r][c].charAt(1)); 
 				if(Character.toString(board[r][c].charAt(0)).equals("W")) {
-					if(Character.toString(board[r][c].charAt(1)).equals("K"))
+					if(Character.toString(board[r][c].charAt(1)).equals("K")) {
 						white = true;
+					}
 					else if(Character.toString(board[r][c].charAt(1)).equals("P") 
 							|| Character.toString(board[r][c].charAt(1)).equals("R"))
 						pawns++;
 				}
 				else if(Character.toString(board[r][c].charAt(0)).equals("B")) {
-					if(Character.toString(board[r][c].charAt(1)).equals("K"))
+					if(Character.toString(board[r][c].charAt(1)).equals("K")) {
 						black = true;
+					}
 					else if(Character.toString(board[r][c].charAt(1)).equals("P") 
 							|| Character.toString(board[r][c].charAt(1)).equals("R"))
 						pawns++;
@@ -184,7 +317,6 @@ public class World {
 		return false;
 	}
 
-	
 	private ArrayList<String> customClone(ArrayList<String> in){
 		ArrayList<String> ret = new ArrayList<String>(in.size());
 		for(String s: in) {
@@ -192,17 +324,101 @@ public class World {
 		}
 		return ret;
 	}
+	
+	private ArrayList<String> sortedClone(ArrayList<String> in, boolean b){
+		ArrayList<String> ret = new ArrayList<String>(in.size());
+		ArrayList<String> retReal = new ArrayList<String>(in.size());
+		String[][] tmp_board = new String[rows][columns];
+		for (int i = 0; i < rows; i++) {
+			for (int j = 0; j < columns; j++) {
+				tmp_board[i][j] = board[i][j];
+			}
+		}
+		
+		for(String s: in) {
+			ret.add(s);
+		}
+		
+		
+		
+		
+		if (b==true) { //maximizing 
+			
+			for(int i=0;i<ret.size();i++) {
+				
+				String move1=ret.get(i);
+				
+				move(move1);
+				
+				int score1 =calcWhiteScore(ret.get(i));
+				undoMove(tmp_board);
+				
+				String move2=ret.get(i+1);
+				
+				move(move2);
+				
+				int score2 =calcWhiteScore(ret.get(i+1));
+				undoMove(tmp_board);
+				
+			
+					if(score1 >= score2) {
+						retReal.add(move1);
+					}else {
+						retReal.add(move2);
+					}
+			
+			}
+		}else{ 	//minimizing 
+				for(int i=0;i<ret.size();i++) {
+				
+					String move1=ret.get(i);
+				
+					move(move1);
+				
+					int score1 =calcWhiteScore(ret.get(i));
+					undoMove(tmp_board);
+				
+					String move2=ret.get(i+1);
+				
+					move(move2);
+				
+					int score2 =calcWhiteScore(ret.get(i+1));
+					undoMove(tmp_board);
+				
+			
+						if(score1 <= score2) {
+							retReal.add(move1);
+						
+						}else {
+								retReal.add(move2);
+						}
+			
+		  }
+				
+		}		
+		return retReal;
+	}
+	
+	
+	
+	
 	/**
 	 * first call alpha=Integer.MIN_VALUE and beta=Integer.MAX_VALUE and
 	 * maximizingPlayer=true
 	 */
-	private int minimax(String move, int depth, int alpha, int beta, Boolean maximizingPlayer) {
+	
+	
+	
+	
+	
+	private int minimax(String move, int depth, int alpha, int beta, Boolean maximizingPlayer ,int mScore , int eScore) {
 		String[][] temp_board = new String[rows][columns];
 		ArrayList<String> children=new ArrayList<String>();
+		boolean b=false;
 		if (depth == 0 || game_over()) {
-//			System.out.println("111111111111111");
+//			System.out.println("Depth"+depth);
 //			System.out.println("Recursion fin: \tmine: "+myScore+"\tenemy: "+enemyScore);
-			return static_eval();// (myScore, enemyScore);
+			return static_eval(mScore,eScore);// (myScore, enemyScore);
 		}
 
 		for (int i = 0; i < rows; i++) {
@@ -214,61 +430,197 @@ public class World {
 		if (maximizingPlayer) {
 			int maxEval = Integer.MIN_VALUE;
 //			ArrayList<String> children;
+			availableMoves.clear();
 			if (myColor == 0) // I am the white player
 				this.whiteMoves();
 			else // I am the black player
 				this.blackMoves();
+			b=true;
 			children = customClone(availableMoves);
-			currMyScore=this.myScore;
-			this.myScore+=calcMovesScore(move);
+			
+			
 //			System.out.println("MINIMAX::maxPlayer"+availableMoves);
+			currMyScore=mScore;
+			currEnemyScore=eScore;
 			for (String child : children) {
-				availableMoves.clear();
+				for(int k = 0; k < rows; k++) {
+					for(int j = 0; j < columns; j++) {
+			           board[k][j] = temp_board[k][j];
+			        }
+			    }
 				
+//				System.out.println("============befMax=============");
+//				System.out.println(child);
+//				for (int i = 0; i < rows; i++) {
+//					for (int j = 0; j < columns; j++) {
+//						if(Character.toString(board[i][j].charAt(0)).equals("P"))
+//							System.out.print("|P|");
+//						else if(!((Character.toString(board[i][j].charAt(0)).equals("B")) || Character.toString(board[i][j].charAt(0)).equals("W")))
+//							System.out.print("|-|");
+//						else
+//							System.out.print("|"+board[i][j]+"|");
+//					}
+//					System.out.println("");
+//				}
+//				System.out.println("============befMax============");
+//				System.out.println("Mine: "+myScore+"\tEnemy: "+enemyScore);
+				
+				if (myColor == 0) { // I am the white player
+					myScore+=calcWhiteScore(child);
+					enemyScore+=calcBlackScore(child);
+//					myScore=mScore;
+//					enemyScore=eScore;
+				}	
+				else { // I am the black player
+					myScore+=calcBlackScore(child);
+					enemyScore+=calcWhiteScore(child);
+//					myScore=mScore;
+//					enemyScore=eScore;
+				}
 				// Make Move
 				move(child);
 
-				maxEval = Math.max(maxEval, minimax(child, depth - 1, alpha, beta, false));
-				this.myScore=currMyScore;
+//				System.out.println("===========afMax============");
+//				System.out.println(child);
+//				for (int i = 0; i < rows; i++) {
+//					for (int j = 0; j < columns; j++) {
+//						if(Character.toString(board[i][j].charAt(0)).equals("P"))
+//							System.out.print("|P|");
+//						else if(!((Character.toString(board[i][j].charAt(0)).equals("B")) || Character.toString(board[i][j].charAt(0)).equals("W")))
+//							System.out.print("|-|");
+//						else
+//							System.out.print("|"+board[i][j]+"|");
+//					}
+//					System.out.println("");
+//				}
+//				System.out.println("===========afMax============");
+//				System.out.println("Mine: "+myScore+"\tEnemy: "+enemyScore);
+				maxEval = Math.max(maxEval, minimax(child, depth - 1, alpha, beta, false, myScore, enemyScore));
+				myScore=currMyScore;
+				enemyScore=currEnemyScore;
 				undoMove(temp_board);
+//				System.out.println("===========afMaxRe============");
+//				System.out.println(child);
+//				for (int i = 0; i < rows; i++) {
+//					for (int j = 0; j < columns; j++) {
+//						if(Character.toString(board[i][j].charAt(0)).equals("P"))
+//							System.out.print("|P|");
+//						else if(!((Character.toString(board[i][j].charAt(0)).equals("B")) || Character.toString(board[i][j].charAt(0)).equals("W")))
+//							System.out.print("|-|");
+//						else
+//							System.out.print("|"+board[i][j]+"|");
+//					}
+//					System.out.println("");
+//				}
+//				System.out.println("===========afMaxRe============");
+//				System.out.println("Mine: "+myScore+"\tEnemy: "+enemyScore);
 				alpha = Math.max(alpha, maxEval);
 				if (beta <= alpha)
 					break;
 			}
-			return alpha;
+//			System.out.println("gurnaw max");
+			return maxEval;
 		} else {
 			int minEval = Integer.MAX_VALUE;
 //			ArrayList<String> children;
+			availableMoves.clear();
 			if (myColor != 0) // I am the white player
 				this.whiteMoves();
 			else // I am the black player
 				this.blackMoves();
+			b=false;
 			children = customClone(availableMoves);
-			currEnemyScore=this.enemyScore;
-			this.enemyScore+=calcMovesScore(move);
 //			System.out.println("MINIMAX::minPlayer"+availableMoves);
+			currMyScore=mScore;
+			currEnemyScore=eScore;
 			for (String child : children) {
-				availableMoves.clear();
+				for(int k = 0; k < rows; k++) {
+					for(int j = 0; j < columns; j++) {
+			           board[k][j] = temp_board[k][j];
+			        }
+			    }
+//				availableMoves.clear();
 
+//				System.out.println("===========befMin============");
+//				System.out.println(child);
+//				for (int i = 0; i < rows; i++) {
+//					for (int j = 0; j < columns; j++) {
+//						if(Character.toString(board[i][j].charAt(0)).equals("P"))
+//							System.out.print("|P|");
+//						else if(!((Character.toString(board[i][j].charAt(0)).equals("B")) || Character.toString(board[i][j].charAt(0)).equals("W")))
+//							System.out.print("|-|");
+//						else
+//							System.out.print("|"+board[i][j]+"|");
+//					}
+//					System.out.println("");
+//				}
+//				System.out.println("===========befMin============");
+//				System.out.println("Mine: "+myScore+"\tEnemy: "+enemyScore);
+				
+				if (myColor == 0) { // I am the white player
+					myScore+=calcWhiteScore(child);
+					enemyScore+=calcBlackScore(child);
+//					this.myScore=mScore;
+//					this.enemyScore=eScore;
+				}	
+				else { // I am the black player
+					myScore+=calcBlackScore(child);
+					enemyScore+=calcWhiteScore(child);
+//					this.myScore=mScore;
+//					this.enemyScore=eScore;
+				}
 				// Make Move
 				move(child);
-
-				minEval = Math.min(minEval, minimax(child, depth - 1, alpha, beta, true));
-				this.enemyScore=currEnemyScore;
+				
+//				System.out.println("===========afMin============");
+//				System.out.println(child);
+//				for (int i = 0; i < rows; i++) {
+//					for (int j = 0; j < columns; j++) {
+//						if(Character.toString(board[i][j].charAt(0)).equals("P"))
+//							System.out.print("|P|");
+//						else if(!((Character.toString(board[i][j].charAt(0)).equals("B")) || Character.toString(board[i][j].charAt(0)).equals("W")))
+//							System.out.print("|-|");
+//						else
+//							System.out.print("|"+board[i][j]+"|");
+//					}
+//					System.out.println("");
+//				}
+//				System.out.println("===========afMin============");
+//				System.out.println("Mine: "+myScore+"\tEnemy: "+enemyScore);
+				minEval = Math.min(minEval, minimax(child, depth - 1, alpha, beta, true, myScore, enemyScore));
+				myScore=currMyScore;
+				enemyScore=currEnemyScore;
 				undoMove(temp_board);
+//				System.out.println("===========afMinRe============");
+//				System.out.println(child);
+//				for (int i = 0; i < rows; i++) {
+//					for (int j = 0; j < columns; j++) {
+//						if(Character.toString(board[i][j].charAt(0)).equals("P"))
+//							System.out.print("|P|");
+//						else if(!((Character.toString(board[i][j].charAt(0)).equals("B")) || Character.toString(board[i][j].charAt(0)).equals("W")))
+//							System.out.print("|-|");
+//						else
+//							System.out.print("|"+board[i][j]+"|");
+//					}
+//					System.out.println("");
+//				}
+//				System.out.println("===========afMinRe============");
+//				System.out.println("Mine: "+myScore+"\tEnemy: "+enemyScore);
 				beta = Math.min(beta, minEval);
 				if (beta <= alpha)
 					break;
 			}
-			return beta;
+//			System.out.println("gurnaw min");
+			return minEval;
 		}
 	}
 
-	private int static_eval() {
+	private int static_eval(int mScore , int eScore) {
 		int whitePawnValue=0;
 		int blackPawnValue=0;
-		for(int i = 0; i < this.rows; i++) {
-	         for(int j = 0; j < this.columns; j++){
+		int value=0;
+		for(int i = 0; i < rows; i++) {
+	         for(int j = 0; j < columns; j++){
 	        	 if( Character.toString(board[i][j].charAt(0)) == "W") {
 	        		 if(Character.toString(board[i][j].charAt(1)).equals("P")) {
 	        			 whitePawnValue++;
@@ -288,11 +640,11 @@ public class World {
 	        	 }
 	        }
 		}
-		int value=(this.myScore+whitePawnValue)-(this.enemyScore+blackPawnValue);
+		value=(mScore+whitePawnValue)-(eScore+blackPawnValue);
 		if(myColor == 0)		// I am the white player
 			return value;
 		else					// I am the black player
-			return (this.myScore+blackPawnValue)-(this.enemyScore+whitePawnValue);
+			return (mScore+blackPawnValue)-(eScore+whitePawnValue);
 	}
 
 	private int static_eval(String move) {
