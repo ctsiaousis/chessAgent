@@ -1,5 +1,8 @@
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.Random;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 public class World {
 	private String[][] board = null;
@@ -79,7 +82,8 @@ public class World {
 
 	public String selectAction() {
 		availableMoves = new ArrayList<String>();
-		String[][] temp_board = new String[rows][columns]; // copy of board
+		
+		String[][] temp_board = backupCurrentBoard();
 		int eval;
 
 		if (myColor == 0) { // I am the white player
@@ -98,15 +102,10 @@ public class World {
 		nTurns++;
 		nBranches += availableMoves.size();
 
-
 		int maxEval = Integer.MIN_VALUE;
-		for (int i = 0; i < rows; i++) {
-			for (int j = 0; j < columns; j++) {
-				temp_board[i][j] = board[i][j];
-			}
-		}
+
 //		children = customClone(availableMoves);
-		ArrayList<String> moves = getOnlyGoodMoves(availableMoves);
+		ArrayList<String> moves = getSortedGoodMoves(availableMoves);
 
 		for (String move : moves) {
 			availableMoves.clear();
@@ -127,7 +126,7 @@ public class World {
 				chosenMove = move;
 			}
 		}
-		System.gc();//garbage collection
+		System.gc();// garbage collection
 		return chosenMove;
 	}
 
@@ -238,10 +237,10 @@ public class World {
 		return ret;
 	}
 
-	private ArrayList<String> getOnlyGoodMoves(ArrayList<String> in) {
+	private ArrayList<String> getSortedGoodMoves(ArrayList<String> in) {
 		ArrayList<String> goodMoves = new ArrayList<String>(in.size());
 		ArrayList<String> backup = customClone(in);
-		//first add the moves with actions
+		// first add the moves with actions
 		for (String move : in) {
 			int score;
 			if (myColor == 0) // I am the white player
@@ -251,9 +250,9 @@ public class World {
 			if (score > 0)
 				goodMoves.add(move);
 		}
-		//they can be dump so add the others as well
+		// they can be dump so add the others as well
 		for (String move : backup) {
-			if(goodMoves.contains(move))
+			if (goodMoves.contains(move))
 				continue;
 			goodMoves.add(move);
 		}
@@ -272,19 +271,13 @@ public class World {
 	}
 
 	private int minimax(String move, int depth, int alpha, int beta, Boolean maximizingPlayer, int mScore, int eScore) {
-		String[][] temp_board = new String[rows][columns];
 		ArrayList<String> children = new ArrayList<String>();
+		String[][] temp_board = backupCurrentBoard();
 
 		if (depth == 0 || game_over()) {
 //			System.out.println("Depth"+depth);
 //			System.out.println("Recursion fin: \tmine: "+myScore+"\tenemy: "+enemyScore);
 			return static_eval(mScore, eScore);
-		}
-
-		for (int i = 0; i < rows; i++) {
-			for (int j = 0; j < columns; j++) {
-				temp_board[i][j] = board[i][j];
-			}
 		}
 
 		if (maximizingPlayer) {
@@ -297,7 +290,7 @@ public class World {
 				this.blackMoves();
 
 //			children = customClone(availableMoves);
-			children = getOnlyGoodMoves(availableMoves);
+			children = getSortedGoodMoves(availableMoves);
 
 			for (String child : children) {
 
@@ -328,7 +321,7 @@ public class World {
 				this.blackMoves();
 
 //			children = customClone(availableMoves);
-			children = getOnlyGoodMoves(availableMoves);
+			children = getSortedGoodMoves(availableMoves);
 
 			for (String child : children) {
 
@@ -348,6 +341,79 @@ public class World {
 			}
 //			System.out.println("gurnaw min");
 			return minEval;
+		}
+	}
+	
+	private String[][] backupCurrentBoard(){
+		String[][] temp_board = new String[rows][columns];
+		for (int i = 0; i < rows; i++) {
+			for (int j = 0; j < columns; j++) {
+				temp_board[i][j] = board[i][j];
+			}
+		}
+		return temp_board;
+	}
+
+	public String mcts() {
+		String[][] originalBoard = backupCurrentBoard();
+		BoardNode root = new BoardNode(null, backupCurrentBoard(), rows, columns);
+
+		availableMoves.clear();
+		if (myColor == 0) // I am the white player
+			this.whiteMoves();
+		else // I am the black player
+			this.blackMoves();
+		
+		
+		root.insertChildBoards(getSortedGoodMoves(availableMoves));
+		
+		BoardNode currentNode 	= null;
+		BoardNode lastNode 		= null;
+		long end = System.currentTimeMillis() + 5500; //5.5 seconds for each move
+		
+		while (System.currentTimeMillis() < end) {
+			currentNode = root;
+			System.out.println("mcts -- 1");
+			while(root.contains(currentNode.board)) {
+				System.out.println("mcts -- 1.1");
+				lastNode = currentNode;
+				if(currentNode.isLeaf())
+					break;
+				currentNode = currentNode.select();
+				currentNode.visitCount += 1;
+			}
+			//PlayOut
+			this.playOut(currentNode);
+			//Expand
+			currentNode.insertChildBoards(getSortedGoodMoves(availableMoves));
+			//BackPropagate Result
+			currentNode = lastNode;
+			while(root.contains(currentNode.board)) {
+				//backPropagation
+				currentNode.visitCount += 1;
+				currentNode = currentNode.parent;
+				if(currentNode == null)
+					break;
+			}
+		}
+		//restore board
+		undoMove(originalBoard);
+		return root.getBestMove();
+	}
+	
+	private void playOut(BoardNode nodeIn) {
+		undoMove(nodeIn.board);
+		availableMoves.clear();
+		if(nodeIn.level%2 == 0) {//maximizing
+			if (myColor == 0) // I am the white player
+				this.whiteMoves();
+			else // I am the black player
+				this.blackMoves();
+		}else { // minimizing
+			if (myColor == 0)//me white, opponent black
+				this.blackMoves();
+			else //me black, opponent white
+				this.whiteMoves();
 		}
 	}
 

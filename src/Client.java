@@ -119,7 +119,8 @@ public class Client
 						// beginning of the game
 						if(myColor == 0)
 						{
-							String action = world.selectAction();
+//							String action = world.selectAction();
+							String action = world.mcts();
 							
 							try
 							{
