@@ -1,8 +1,6 @@
 import java.util.ArrayList;
-import java.util.Iterator;
+import java.util.Collections;
 import java.util.Random;
-import java.util.SortedSet;
-import java.util.TreeSet;
 
 public class World {
 	private String[][] board = null;
@@ -82,7 +80,7 @@ public class World {
 
 	public String selectAction() {
 		availableMoves = new ArrayList<String>();
-		
+
 		String[][] temp_board = backupCurrentBoard();
 		int eval;
 
@@ -105,7 +103,7 @@ public class World {
 		int maxEval = Integer.MIN_VALUE;
 
 //		children = customClone(availableMoves);
-		ArrayList<String> moves = getSortedGoodMoves(availableMoves);
+		ArrayList<String> moves = getSortedGoodMoves(availableMoves, true);
 
 		for (String move : moves) {
 			availableMoves.clear();
@@ -120,7 +118,7 @@ public class World {
 			myScore = curMyScore;
 			enemyScore = curEnemyScore;
 			// Restore board
-			undoMove(temp_board);
+			restoreBoard(temp_board);
 			if (eval > maxEval) {
 				maxEval = eval;
 				chosenMove = move;
@@ -237,16 +235,26 @@ public class World {
 		return ret;
 	}
 
-	private ArrayList<String> getSortedGoodMoves(ArrayList<String> in) {
+	private ArrayList<String> getSortedGoodMoves(ArrayList<String> in, boolean maximizing) {
 		ArrayList<String> goodMoves = new ArrayList<String>(in.size());
+		// shuffle available moves to prevent one-side playing
+		Collections.shuffle(in);
+
 		ArrayList<String> backup = customClone(in);
 		// first add the moves with actions
 		for (String move : in) {
 			int score;
-			if (myColor == 0) // I am the white player
-				score = calcWhiteScore(move);
-			else
-				score = calcBlackScore(move);
+			if (maximizing) {
+				if (myColor == 0) // I am the white player
+					score = calcWhiteScore(move);
+				else
+					score = calcBlackScore(move);
+			} else {
+				if (myColor == 0) // I am the white, opponent black
+					score = calcBlackScore(move);
+				else
+					score = calcWhiteScore(move);
+			}
 			if (score > 0)
 				goodMoves.add(move);
 		}
@@ -282,7 +290,6 @@ public class World {
 
 		if (maximizingPlayer) {
 			int maxEval = Integer.MIN_VALUE;
-//			ArrayList<String> children;
 			availableMoves.clear();
 			if (myColor == 0) // I am the white player
 				this.whiteMoves();
@@ -290,30 +297,24 @@ public class World {
 				this.blackMoves();
 
 //			children = customClone(availableMoves);
-			children = getSortedGoodMoves(availableMoves);
-
-			for (String child : children) {
-
+			children = getSortedGoodMoves(availableMoves, true);
+			for (String childMove : children) {
 				// calculate score
-				calculateScore(child);
+				calculateScore(childMove);
 				// Make Move
-				move(child);
-
-				maxEval = Math.max(maxEval, minimax(child, depth - 1, alpha, beta, false, myScore, enemyScore));
-//				System.out.println("PRWTO GAMIIESAI cur: " + curMyScore + " input: " + mScore);
+				move(childMove);
+				maxEval = Math.max(maxEval, minimax(childMove, depth - 1, alpha, beta, false, myScore, enemyScore));
 				myScore = mScore;
 				enemyScore = eScore;
 				// restore board
-				undoMove(temp_board);
+				restoreBoard(temp_board);
 				alpha = Math.max(alpha, maxEval);
 				if (beta <= alpha)
 					break;
 			}
-//			System.out.println("gurnaw max");
 			return maxEval;
 		} else {
 			int minEval = Integer.MAX_VALUE;
-//			ArrayList<String> children;
 			availableMoves.clear();
 			if (myColor != 0) // I am the white player
 				this.whiteMoves();
@@ -321,30 +322,26 @@ public class World {
 				this.blackMoves();
 
 //			children = customClone(availableMoves);
-			children = getSortedGoodMoves(availableMoves);
-
-			for (String child : children) {
-
+			children = getSortedGoodMoves(availableMoves, false);
+			for (String childMove : children) {
 				// calculate score
-				calculateScore(child);
+				calculateScore(childMove);
 				// Make Move
-				move(child);
-
-				minEval = Math.min(minEval, minimax(child, depth - 1, alpha, beta, true, myScore, enemyScore));
+				move(childMove);
+				minEval = Math.min(minEval, minimax(childMove, depth - 1, alpha, beta, true, myScore, enemyScore));
 				myScore = mScore;
 				enemyScore = eScore;
 				// restore board
-				undoMove(temp_board);
+				restoreBoard(temp_board);
 				beta = Math.min(beta, minEval);
 				if (beta <= alpha)
 					break;
 			}
-//			System.out.println("gurnaw min");
 			return minEval;
 		}
 	}
-	
-	private String[][] backupCurrentBoard(){
+
+	private String[][] backupCurrentBoard() {
 		String[][] temp_board = new String[rows][columns];
 		for (int i = 0; i < rows; i++) {
 			for (int j = 0; j < columns; j++) {
@@ -363,56 +360,57 @@ public class World {
 			this.whiteMoves();
 		else // I am the black player
 			this.blackMoves();
-		
-		
-		root.insertChildBoards(getSortedGoodMoves(availableMoves));
-		
-		BoardNode currentNode 	= null;
-		BoardNode lastNode 		= null;
-		long end = System.currentTimeMillis() + 5500; //5.5 seconds for each move
-		
-		while (System.currentTimeMillis() < end) {
+
+		// keeping track of the branch factor
+		nTurns++;
+		nBranches += availableMoves.size();
+		// insert first level to the tree
+		root.insertChildBoards(getSortedGoodMoves(availableMoves, true));
+
+		BoardNode currentNode = null;
+		BoardNode lastNode = null;
+		long end = System.currentTimeMillis() + 5000; // 5 seconds for each move
+
+		while (System.currentTimeMillis() <= end) {
 			currentNode = root;
-			System.out.println("mcts -- 1");
-			while(root.contains(currentNode.board)) {
-				System.out.println("mcts -- 1.1");
+			while (root.contains(currentNode.board)) {
+//				currentNode.visitCount += 1;
 				lastNode = currentNode;
-				if(currentNode.isLeaf())
+				if (currentNode.isLeaf())
 					break;
 				currentNode = currentNode.select();
-				currentNode.visitCount += 1;
 			}
-			//PlayOut
-			this.playOut(currentNode);
-			//Expand
-			currentNode.insertChildBoards(getSortedGoodMoves(availableMoves));
-			//BackPropagate Result
+			boolean isMaximizing = currentNode.level % 2 == 0;
+			// PlayOut
+			this.playOut(currentNode, isMaximizing);
+			// Expand
+			currentNode.insertChildBoards(getSortedGoodMoves(availableMoves, isMaximizing));
+			// BackPropagate Result
 			currentNode = lastNode;
-			while(root.contains(currentNode.board)) {
-				//backPropagation
-				currentNode.visitCount += 1;
-				currentNode = currentNode.parent;
-				if(currentNode == null)
+			while (root.contains(currentNode.board)) {
+				// backPropagation
+				currentNode = currentNode.backPropagate();
+				if (currentNode == null)// reached parent
 					break;
 			}
 		}
-		//restore board
-		undoMove(originalBoard);
+		// restore board
+		restoreBoard(originalBoard);
 		return root.getBestMove();
 	}
-	
-	private void playOut(BoardNode nodeIn) {
-		undoMove(nodeIn.board);
+
+	private void playOut(BoardNode nodeIn, boolean maximizing) {
+		restoreBoard(nodeIn.board);
 		availableMoves.clear();
-		if(nodeIn.level%2 == 0) {//maximizing
+		if (maximizing) {
 			if (myColor == 0) // I am the white player
 				this.whiteMoves();
 			else // I am the black player
 				this.blackMoves();
-		}else { // minimizing
-			if (myColor == 0)//me white, opponent black
+		} else { // minimizing
+			if (myColor == 0)// me white, opponent black
 				this.blackMoves();
-			else //me black, opponent white
+			else // me black, opponent white
 				this.whiteMoves();
 		}
 	}
@@ -459,7 +457,7 @@ public class World {
 		return nBranches / (double) nTurns;
 	}
 
-	public void move(String move) {
+	private void move(String move) {
 		int x1, y1, x2, y2;
 
 		x1 = Integer.parseInt(Character.toString(move.charAt(0)));
@@ -487,36 +485,12 @@ public class World {
 
 	}
 
-	public void undoMove(String[][] tempBoard) {
+	private void restoreBoard(String[][] tempBoard) {
 		for (int i = 0; i < rows; i++) {
 			for (int j = 0; j < columns; j++) {
 				board[i][j] = tempBoard[i][j];
 			}
 		}
-	}
-
-	public void makeMove(int x1, int y1, int x2, int y2, int prizeX, int prizeY) {
-		String chesspart = Character.toString(board[x1][y1].charAt(1));
-
-		boolean pawnLastRow = false;
-
-		// check if it is a move that has made a move to the last line
-		if (chesspart.equals("P"))
-			if ((x1 == rows - 2 && x2 == rows - 1) || (x1 == 1 && x2 == 0)) {
-				board[x2][y2] = " "; // in a case an opponent's chess part has just been captured
-				board[x1][y1] = " ";
-				pawnLastRow = true;
-			}
-
-		// otherwise
-		if (!pawnLastRow) {
-			board[x2][y2] = board[x1][y1];
-			board[x1][y1] = " ";
-		}
-
-		// check if a prize has been added in the game
-		if (prizeX != noPrize)
-			board[prizeX][prizeY] = "P";
 	}
 
 	private void whiteMoves() {
@@ -890,5 +864,29 @@ public class World {
 				}
 			}
 		}
+	}
+
+	public void makeMove(int x1, int y1, int x2, int y2, int prizeX, int prizeY) {
+		String chesspart = Character.toString(board[x1][y1].charAt(1));
+
+		boolean pawnLastRow = false;
+
+		// check if it is a move that has made a move to the last line
+		if (chesspart.equals("P"))
+			if ((x1 == rows - 2 && x2 == rows - 1) || (x1 == 1 && x2 == 0)) {
+				board[x2][y2] = " "; // in a case an opponent's chess part has just been captured
+				board[x1][y1] = " ";
+				pawnLastRow = true;
+			}
+
+		// otherwise
+		if (!pawnLastRow) {
+			board[x2][y2] = board[x1][y1];
+			board[x1][y1] = " ";
+		}
+
+		// check if a prize has been added in the game
+		if (prizeX != noPrize)
+			board[prizeX][prizeY] = "P";
 	}
 }
