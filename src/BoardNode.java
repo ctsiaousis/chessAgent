@@ -6,7 +6,7 @@ public class BoardNode {
 	public int level, visitCount;
 	public String[][] board;
 	public String cameFromMove;
-	public double movesScore;
+	public double score;
 	public List<BoardNode> children;
 	public BoardNode parent;
 
@@ -20,7 +20,7 @@ public class BoardNode {
 		rows = r;
 		cols = c;
 		cameFromMove = "";
-		movesScore = 0;
+		score = Double.POSITIVE_INFINITY;
 		visitCount = 0;
 		children = new ArrayList<BoardNode>();
 	}
@@ -28,52 +28,59 @@ public class BoardNode {
 	public void insertChildBoards(ArrayList<String> sortedAvailableMoves) {
 		for (String move : sortedAvailableMoves) {
 			BoardNode b = new BoardNode(this, this.createNewBoard(move), this.rows, this.cols);
-			b.cameFromMove = move;
-			b.movesScore = calculateScore(move);
+			b.initialize(move);
 			this.children.add(b);
 		}
 	}
 
 	public String getBestMove() {
-//		System.out.println("BoardNode::uct()::getBestMove() -- start");
-//		int maxCount = 0, bestIndex = 0;
+//// THIS WAS OUR INITIAL IMPLEMENTATION
+//		double maxCount = 0;
+//		int bestIndex = 0;
 //		for (int i = 0; i < children.size(); i++) {
-//			int thisCount = children.get(i).visitCount;
-//			if (thisCount > maxCount) {
-//				maxCount = thisCount;
+//			double s = children.get(i).score;
+//			if (s > maxCount) {
+//				maxCount = s;
 //				bestIndex = i;
 //			}
 //		}
 //		return children.get(bestIndex).cameFromMove;
+//// THIS IS THE SECOND IMPLEMENTATION
 		return this.uct().cameFromMove;
+	}
+
+	public void initialize(String move) {
+		this.cameFromMove = move;
+		this.score = this.winner();
+		if (this.winner() == 1)// this is a terminal state
+			this.children.removeAll(children);
 	}
 
 	public BoardNode backPropagate() {
 		this.visitCount += 1;
-		if (this.parent == null)
-			return this.parent;
-		double argMax = 0.0;
-		for (BoardNode b : this.children) {
-			double tmpUCT = b.movesScore + 2 * Math.sqrt(2) * (Math.sqrt(Math.log(this.visitCount) / (b.visitCount)));
-			if (tmpUCT > argMax && Double.isFinite(tmpUCT)) {
-				argMax = tmpUCT;
-			}
-		}
-		this.movesScore += argMax;
-		this.parent.movesScore += argMax;
+		this.score = uct().score;
+		if (this.parent != null)
+			this.parent.score += this.score;
 		return this.parent;
+	}
+
+	public BoardNode select() {
+		if (this.visitCount > 0 && this.children.isEmpty())
+			return this;
+		BoardNode toRet = this.uct();
+//		System.out.println("BoardNode--select()--index: " + this.children.indexOf(toRet) + " -- score: " + toRet.score);
+		return toRet;
 	}
 
 	private BoardNode uct() {
 		double argMax = 0.0;
 		BoardNode chossen = null;
 		for (BoardNode b : children) {
-			double tmpUCT = b.movesScore + 2 * Math.sqrt(2) * (Math.sqrt(Math.log(this.visitCount) / (b.visitCount)));
-//			double tmpUCT = b.movesScore + 2 * (Math.sqrt(Math.log(this.visitCount) / (2 * b.visitCount)));
+			double tmpUCT = b.score + 2 * Math.sqrt(2) * (Math.sqrt(Math.log(this.visitCount) / (b.visitCount)));
 			if (Double.isNaN(tmpUCT))
 				tmpUCT = Double.POSITIVE_INFINITY;
-
 //			System.out.println("BoardNode::uct()::tmpUCT -- " + tmpUCT);
+//			System.out.println("BoardNode::uct()::b.score  -- " + b.score);
 			if (tmpUCT > argMax) {
 				argMax = tmpUCT;
 				chossen = b;
@@ -81,10 +88,6 @@ public class BoardNode {
 		}
 //		System.out.println("BoardNode::uct()::argMax -- " + argMax);
 		return chossen;
-	}
-
-	public BoardNode select() {
-		return this.uct(); // children are inserted sorted
 	}
 
 	public boolean isLeaf() {
@@ -143,54 +146,29 @@ public class BoardNode {
 		return newBoard;
 	}
 
-	private double calculateScore(String move) {
-		double returningScore = 1.0;
-		double prizeChance = 0.9;
-		int x1 = Integer.parseInt(Character.toString(move.charAt(0)));
-		int y1 = Integer.parseInt(Character.toString(move.charAt(1)));
-		int x2 = Integer.parseInt(Character.toString(move.charAt(2)));
-		int y2 = Integer.parseInt(Character.toString(move.charAt(3)));
-
-		if (Character.toString(board[x1][y1].charAt(0)).equals("W")) {
-			if (Character.toString(board[x2][y2].charAt(0)).equals("B")) {
-				if (Character.toString(board[x2][y2].charAt(1)).equals("P")) {
-					returningScore += 1;
-				} else if (Character.toString(board[x2][y2].charAt(1)).equals("R")) {
-					returningScore += 3;
-				} else if (Character.toString(board[x2][y2].charAt(1)).equals("K")) {
-					returningScore += 8;
+	public int winner() {
+		int x2 = Integer.parseInt(Character.toString(cameFromMove.charAt(2)));
+		int y2 = Integer.parseInt(Character.toString(cameFromMove.charAt(3)));
+		boolean iAmWhite = false;
+		if (Character.toString(board[x2][y2].charAt(0)).equals("W")) {
+			iAmWhite = true;
+		}
+		boolean whiteKingExists = false;
+		boolean blackKingExists = false;
+		for (int i = 0; i < rows; i++) {
+			for (int j = 0; j < cols; j++) {
+				if (board[i][j].contains("WK")) {
+					whiteKingExists = true;
 				}
-			} else if (Character.toString(board[x2][y2].charAt(0)).equals("P")) {// prize
-				if (Math.random() > prizeChance)
-					returningScore += 1;
-			}
-			if (Character.toString(board[x1][y1].charAt(1)).equals("P")) {
-				if ((x1 == rows - 2 && x2 == rows - 1) || (x1 == 1 && x2 == 0)) { // last row
-					returningScore += 1;
+				if (board[i][j].contains("BK") && !iAmWhite) {
+					blackKingExists = true;
 				}
 			}
 		}
-		if (Character.toString(board[x1][y1].charAt(0)).equals("B")) {
-			if (Character.toString(board[x2][y2].charAt(0)).equals("W")) {
-				if (Character.toString(board[x2][y2].charAt(1)).equals("P")) {
-					returningScore += 1;
-				} else if (Character.toString(board[x2][y2].charAt(1)).equals("R")) {
-					returningScore += 3;
-				} else if (Character.toString(board[x2][y2].charAt(1)).equals("K")) {
-					returningScore += 8;
-				}
-			} else if (Character.toString(board[x2][y2].charAt(0)).equals("P")) {// prize
-				if (Math.random() > prizeChance)
-					returningScore += 1;
-			}
-			if (Character.toString(board[x1][y1].charAt(1)).equals("P")) {
-				if ((x1 == rows - 2 && x2 == rows - 1) || (x1 == 1 && x2 == 0)) { // last row
-					returningScore += 1;
-				}
-			}
-		}
-		// max score is 10, so divide it to be normalized in [0,1] as the assignment
-		// suggests
-		return returningScore / 10;
+		if (iAmWhite && blackKingExists)
+			return 0;
+		else if (!iAmWhite && whiteKingExists)
+			return 0;
+		return 1;
 	}
 }

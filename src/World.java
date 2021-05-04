@@ -14,7 +14,7 @@ public class World {
 	private int nBranches = 0;
 	private int noPrize = 9;
 	private String chosenMove;
-	private int minimaxDepth = 8;
+	private int minimaxDepth = 5;
 	private int myScore = 0, enemyScore = 0;
 	private int curMyScore = 0, curEnemyScore = 0;
 	private static final double prizeChance = 0.9;
@@ -283,8 +283,6 @@ public class World {
 		String[][] temp_board = backupCurrentBoard();
 
 		if (depth == 0 || game_over()) {
-//			System.out.println("Depth"+depth);
-//			System.out.println("Recursion fin: \tmine: "+myScore+"\tenemy: "+enemyScore);
 			return static_eval(mScore, eScore);
 		}
 
@@ -368,30 +366,24 @@ public class World {
 		root.insertChildBoards(getSortedGoodMoves(availableMoves, true));
 
 		BoardNode currentNode = null;
-		BoardNode lastNode = null;
-		long end = System.currentTimeMillis() + 5000; // 5 seconds for each move
+		long end = System.currentTimeMillis() + 4000; // 4 seconds for each move
 
 		while (System.currentTimeMillis() <= end) {
 			currentNode = root;
-			while (root.contains(currentNode.board)) {
-//				currentNode.visitCount += 1;
-				lastNode = currentNode;
-				if (currentNode.isLeaf())
-					break;
+
+			while (!currentNode.isLeaf()) {
+				// selection
 				currentNode = currentNode.select();
 			}
-			boolean isMaximizing = currentNode.level % 2 == 0;
+			boolean isMyTurn = currentNode.level % 2 == 0;
 			// PlayOut
-			this.playOut(currentNode, isMaximizing);
+			this.playOut(currentNode, isMyTurn);
 			// Expand
-			currentNode.insertChildBoards(getSortedGoodMoves(availableMoves, isMaximizing));
+			currentNode.insertChildBoards(getSortedGoodMoves(availableMoves, isMyTurn));
 			// BackPropagate Result
-			currentNode = lastNode;
-			while (root.contains(currentNode.board)) {
-				// backPropagation
+			currentNode = currentNode.parent;
+			while (currentNode != null) {
 				currentNode = currentNode.backPropagate();
-				if (currentNode == null)// reached parent
-					break;
 			}
 		}
 		// restore board
@@ -420,20 +412,20 @@ public class World {
 		int blackPawnValue = 0;
 		for (int i = 0; i < rows; i++) {
 			for (int j = 0; j < columns; j++) {
-				if (Character.toString(board[i][j].charAt(0)) == "W") {
-					if (Character.toString(board[i][j].charAt(1)).equals("P")) {
+				if (board[i][j].startsWith("W")) {
+					if (board[i][j].contains("WP")) {
 						whitePawnValue++;
-					} else if (Character.toString(board[i][j].charAt(1)).equals("R")) {
+					} else if (board[i][j].contains("WR")) {
 						whitePawnValue += 3;
-					} else if (Character.toString(board[i][j].charAt(1)).equals("K")) {
+					} else if (board[i][j].contains("WK")) {
 						whitePawnValue += 8;
 					}
-				} else if (Character.toString(board[i][j].charAt(0)) == "B") {
-					if (Character.toString(board[i][j].charAt(1)).equals("P")) {
+				} else if (board[i][j].startsWith("B")) {
+					if (board[i][j].contains("BP")) {
 						blackPawnValue++;
-					} else if (Character.toString(board[i][j].charAt(1)).equals("R")) {
+					} else if (board[i][j].contains("BR")) {
 						blackPawnValue += 3;
-					} else if (Character.toString(board[i][j].charAt(1)).equals("K")) {
+					} else if (board[i][j].contains("BK")) {
 						blackPawnValue += 8;
 					}
 				}

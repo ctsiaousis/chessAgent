@@ -8,7 +8,7 @@ import java.util.Random;
 
 public class Client {
 	private static final int PORTServer = 9876;
-	private static final boolean playWithMCTS = true;
+	private static final boolean playWithMCTS = false;
 	private DatagramSocket clientSocket = null;
 	private byte[] sendData = null;
 	private byte[] receiveData = null;
